@@ -1,19 +1,44 @@
 from urllib import response
 
 from ollama import chat
+import time
 
+import logging
 
+import os
 
 
 class blinders_framework:
   def __init__(self, model_name):
+    # Initialize logging
+
+
+    # Define the log folder and filename
+    log_folder = "logs"  # Name of the log folder
+    timestamp = int(time.time())  # Current time in seconds
+    log_filename = log_folder + f'/diet_planner_{timestamp}.log'
+
+
+
+    # Create the log folder if it doesn't exist
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+        logging.info(f"Created log folder: {log_folder}")
+
+    logging.basicConfig(
+        filename=log_filename,  # Log file name
+        level=logging.INFO,            # Log level (INFO, DEBUG, ERROR, etc.)
+        format='%(asctime)s - %(levelname)s - %(message)s'  # Log message format
+    )
+
+
+    logging.info("Initializing diet_plan_agentic_agent...")
+
+
     self._model_name = model_name
-    nutritionist_role = "nutritionist"
-    user_handler_role = "user_handler"
     
     self._roles ={
-}
-
+    }
 
     self._tools_for_agents = {
     }
@@ -29,6 +54,9 @@ class blinders_framework:
 
   def add_agent(self, role_name, role_description, tool_func_list,tool_descriptions, goal_for_role, main_agent = False):
     """Add a new agent role to the framework."""
+    logging.info(f"Adding agent role: {role_name} with goal: {goal_for_role}")
+
+
     self._roles[role_name] = role_description
 
     self._tools_for_agents[role_name] = {}
@@ -47,6 +75,9 @@ class blinders_framework:
 
   def run_framework(self, query):
     """Run the framework with the main agent role."""
+    logging.info(f"Running framework with main agent role: {self._main_agent_role} and query: {query}")
+
+
     if not self._main_agent_role:
         raise ValueError("No main agent role defined. Please set main_agent=True for one of the agents.")
 
@@ -88,7 +119,7 @@ class blinders_framework:
                     {self._roles[self._main_agent_role]}
                     
                   ### call content:
-                    {result.message.content}
+                    {result}
                   """
 
         
@@ -107,7 +138,48 @@ class blinders_framework:
 
     return output
 
+  def run_agent(self, role_name, query):
+    """Run a specific agent role in the framework."""
+    logging.info(f"Running agent role: {role_name} with query: {query}")
 
+    if role_name not in self._roles:
+        raise ValueError(f"Role '{role_name}' is not defined in the framework.")
+
+    prompt = f"""
+            ### role:
+              {self._roles[role_name]}
+
+            ### goal:
+              {self._goals_for_roles[role_name]}
+
+            ### call content:
+              {query}
+            """
+
+    
+    messages = [{"role": "user", "content": prompt}]
+
+
+    response = chat(
+        model=self._model_name,
+        messages=messages,
+        tools=self._tools_for_agents[role_name].values(),
+        think=False
+    )
+    output = response.message.content
+
+
+    if response.message.tool_calls:
+        call = response.message.tool_calls[0]
+        tool_name = call.function.name
+        arguments = dict(call.function.arguments or {})
+
+
+        # overwrite the output with the tool call result
+        output = self._tools_for_agents[role_name][tool_name](**arguments)
+
+
+    return output
 
 class diet_planner_agentic_agent(blinders_framework):
 
@@ -166,7 +238,6 @@ class diet_planner_agentic_agent(blinders_framework):
     )
 
 
-
     self.add_agent(
         role_name="nutritionist",
         role_description="This user generates a nutrition plan based on the user's requirements",
@@ -192,22 +263,9 @@ class diet_planner_agentic_agent(blinders_framework):
   def call_nutritionist_tool(self, user_requirements: str):
     """Call the nutritionist tool with the user's requirements."""
     print("called the nutritionist")
+    role = 'nutritionist'
 
-    prompt = f"""
-    ### role:
-      {self._roles['nutritionist']}
-
-    ### goal:
-      {self._goals_for_roles['nutritionist']}
-
-    ### user requirements:
-      {user_requirements}
-    """
-
-    messages = [{"role": "user", "content": prompt}]
-    response = chat(model=self._model_name, messages=messages, think=False)
-    print("nutritionist response: ")
-    print(response)
+    response = self.run_agent(role, user_requirements)
 
     return response
 
@@ -229,3 +287,4 @@ if __name__ == "__main__":
 
   print(" ----- final response ----- ")
   print(response_val)
+

@@ -27,7 +27,7 @@ from functools import wraps
 from flask import Flask, abort, flash, g, jsonify, redirect, render_template_string, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from sustain_AI_project.blinders_framework import blinders_framework
+from blinders_framework import diet_planner_agentic_agent
 
 
 try:
@@ -51,8 +51,6 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get("COOKIE_SECURE", "false").lower() == "true",
     MAX_CONTENT_LENGTH=64 * 1024,
 )
-MODEL_NAME = "qwen3.6"
-
 
 
 
@@ -226,7 +224,11 @@ def rag_generate_response(message, profile_context=None, conversation_history=No
     - State uncertainty and recommend a registered dietitian/clinician for clinical needs.
     - Do not prescribe treatment, diagnose, or encourage unsafe restriction.
     """
-    diet_planner_agentic_system = blinders_framework(MODEL_NAME)
+
+
+    MODEL_NAME = "qwen3.6"
+
+    diet_planner_agentic_system = diet_planner_agentic_agent(MODEL_NAME)
 
 
     prompt = f"""
