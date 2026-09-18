@@ -1,8 +1,6 @@
 from urllib import response
 
 from ollama import chat
-MODEL_NAME = "qwen3.6"
-
 
 
 
@@ -113,6 +111,16 @@ class blinders_framework:
 
 class diet_planner_agentic_agent(blinders_framework):
 
+  ###
+  # This agentic framework is built on the blinders framework.
+  # It has two agents: a user assistant and a nutritionist. The user assistant 
+  # handles communication with the user and calls the nutritionist tool to 
+  # generate a diet plan based on the user's requirements. 
+  # The nutritionist generates a diet plan based on the user's requirements.
+  ###
+
+
+
 
   def __init__(self, model_name):
     super().__init__(model_name)
@@ -168,6 +176,18 @@ class diet_planner_agentic_agent(blinders_framework):
     )
 
 
+  ###
+  # Databases and variables used in the blinders framework system
+  ###
+
+
+
+
+
+
+  ###
+  # Tools used in the blinders framework system 
+  ###
 
   def call_nutritionist_tool(self, user_requirements: str):
     """Call the nutritionist tool with the user's requirements."""
@@ -178,6 +198,7 @@ class diet_planner_agentic_agent(blinders_framework):
       {self._roles['nutritionist']}
 
     ### goal:
+      {self._goals_for_roles['nutritionist']}
 
     ### user requirements:
       {user_requirements}
@@ -188,14 +209,19 @@ class diet_planner_agentic_agent(blinders_framework):
     print("nutritionist response: ")
     print(response)
 
-
-
     return response
 
 
 
+
+
+
 if __name__ == "__main__":
+
+  MODEL_NAME = "qwen3.6"
+
   agentic_system = diet_planner_agentic_agent(MODEL_NAME)
+
 
   query = "I want a diet plan for a week, I want to lose weight and I want to eat healthy food"
 
