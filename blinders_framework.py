@@ -7,8 +7,19 @@ import logging
 
 import os
 
+from RAG import rag_answer
 
 class blinders_framework:
+  """
+  This is a framework for building agentic systems with multiple agents.
+  This system only supports Ollama models currently. 
+  The framework allows you to define multiple agent roles, 
+  each with its own goal and set of tools. 
+  The main agent role is responsible for handling user queries and delegating tasks to other agents as needed.
+  """
+
+
+
   def __init__(self, model_name):
     # Initialize logging
 
@@ -16,7 +27,7 @@ class blinders_framework:
     # Define the log folder and filename
     log_folder = "logs"  # Name of the log folder
     timestamp = int(time.time())  # Current time in seconds
-    log_filename = log_folder + f'/diet_planner_{timestamp}.log'
+    log_filename = log_folder + f'/blinders_framework_{timestamp}.log'
 
 
 
@@ -131,11 +142,11 @@ class blinders_framework:
         print(final_response)
 
         output = final_response.message.content
-        return output
     else:
       output = "WARNING: non tool call is not yet supported! Main agent tried to speak without"
 
 
+    logging.info(f"Framework produced output: {output}")
     return output
 
   def run_agent(self, role_name, query):
@@ -178,7 +189,7 @@ class blinders_framework:
         # overwrite the output with the tool call result
         output = self._tools_for_agents[role_name][tool_name](**arguments)
 
-
+    logging.info(f"Agent role: {role_name} produced output: {output}")
     return output
 
 class diet_planner_agentic_agent(blinders_framework):
@@ -198,15 +209,22 @@ class diet_planner_agentic_agent(blinders_framework):
     super().__init__(model_name)
 
 
-    nutrition_goal = """Generate a healthy diet plan for weight loss based on the user's requirements.
-                      The diet plan should be for a week and include breakfast, lunch, and dinner for each day.
-                      Make the text nice and readable from the terminal.
-                      Keep the plan small and concise, and do not include any additional information or explanations.
-                      """
+
 
     user_assistant_goal = """Inform the user of the decisions made by the underlying agentic system diet app.
                           Only call the nutritionist tool to generate a diet plan based on the user's requirements.
                           Do not make any decisions on your own."""
+
+    nutrition_goal = """Generate a healthy diet plan for weight loss based on the user's requirements.
+                      The diet plan should be for a week and include breakfast, lunch, and dinner for each day.
+                      Make the text nice and readable from the terminal.
+                      Keep the plan small and concise, and do not include any additional information or explanations.
+
+                      The process of the nutritionist is to first retrieve context about the food from the 
+                      internal CSV database using the RAG tool, and then generate a diet plan based on 
+                      the user's requirements and the retrieved context.
+                      """
+
     
     nutrition_call_tool = {
                   "type": "function",
@@ -227,6 +245,24 @@ class diet_planner_agentic_agent(blinders_framework):
               }
 
     
+    RAG_tool = {
+                  "type": "function",
+                  "function": {
+                      "name": "get_RAG_from_database",
+                      "description": "Uses the internal CSV database to retrieve context about the food",
+                      "parameters": {
+                          "type": "object",
+                          "properties": {
+                              "query": {
+                                  "type": "string",
+                                  "description": "Description of the food which the user wants to base their diet plan on. The query should be a string describing the food (e.g., 'I want to eat healthy food')."
+                              }
+                          },
+                          "required": ["query"]
+                      }
+                  }
+              }
+    
     self.add_agent(
         role_name="user assistant",
         role_description="This user handles communication with the user and calls " \
@@ -241,8 +277,8 @@ class diet_planner_agentic_agent(blinders_framework):
     self.add_agent(
         role_name="nutritionist",
         role_description="This user generates a nutrition plan based on the user's requirements",
-        tool_func_list=[],
-        tool_descriptions = [],
+        tool_func_list=[self.get_RAG_from_database],
+        tool_descriptions = [RAG_tool],
         goal_for_role=nutrition_goal
     )
 
@@ -273,6 +309,12 @@ class diet_planner_agentic_agent(blinders_framework):
 
 
 
+  def get_RAG_from_database(self, query):
+    """Get a response from the RAG system based on the user's query."""
+    response = rag_answer(query)
+    return response
+
+
 
 if __name__ == "__main__":
 
@@ -287,4 +329,5 @@ if __name__ == "__main__":
 
   print(" ----- final response ----- ")
   print(response_val)
+
 
